@@ -1,2 +1,2 @@
 # rancher-workstation
-Desktop containers for RancherOS
+Desktop (X server) inside docker container for RancherOS

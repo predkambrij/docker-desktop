@@ -1,12 +1,16 @@
-FROM chinch/fc24
+#FROM chinch/fc24
+FROM ubuntu:16.10
+
+ENV DEBIAN_FRONTEND noninteractive
 
 WORKDIR  /root/Downloads
 
-RUN dnf -y update && \
-    dnf -y install Xorg gnome-shell xorg-x11-drivers mesa-dri-drivers glx-utils sudo fish xcalib socat \
-                   pavucontrol libXxf86vm libXrandr firefox gnome-terminal passwd pulseaudio docker docker-compose \
-                   atomic  wget  lxterminal  pulseaudio-utils && \
-    dnf -y clean all
+# Xorg xorg-x11-drivers mesa-dri-drivers atomic libXxf86vm libXrandr glx-utils
+RUN apt-get update && \
+    apt-get install -y gnome-shell sudo fish xcalib socat pavucontrol wget lxterminal pulseaudio-utils \
+                       firefox gnome-terminal passwd pulseaudio docker docker-compose && \
+    true
+# dnf -y clean all
 
 RUN \
 #    (cd /lib/systemd/system/sysinit.target.wants/ && \
@@ -43,9 +47,7 @@ RUN mkdir -p /run/udev && \
     adduser rancher && \
     usermod -aG video rancher && \
     usermod -aG audio rancher && \
-    groupadd sudo && \
     usermod -aG sudo rancher && \
-    groupadd docker && \
     usermod -aG docker rancher && \
     sed -e 's/^root.*/root\tALL=(ALL)\tALL\nrancher\tALL=(ALL)\tALL/g' /etc/sudoers > /etc/sudoers.new && \
     mv /etc/sudoers.new /etc/sudoers && \
@@ -54,7 +56,14 @@ RUN mkdir -p /run/udev && \
     echo  '12345678900987654321234567890987' > /etc/machine-id && \
     true
 
-ADD gui /usr/bin
-RUN  chmod +x /usr/bin/gui 
-ENTRYPOINT /usr/bin/gui
+#sudo mkdir /sys/fs/cgroup/systemd
+#sudo mount -t cgroup -o none,name=systemd cgroup /sys/fs/cgroup/systemd
+
+CMD /bin/bash -c '\
+/bin/systemd --system & \
+sleep 10; \
+chmod a+w /var/run/dbus/system_bus_socket; \
+X & \
+su - rancher -c "export DISPLAY=\":0\"; gnome-session;" \
+'
 
