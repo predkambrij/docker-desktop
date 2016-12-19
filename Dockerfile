@@ -2,16 +2,14 @@ FROM ubuntu:16.10
 
 ENV DEBIAN_FRONTEND noninteractive
 
-WORKDIR  /root/Downloads
-
-# Xorg xorg-x11-drivers mesa-dri-drivers atomic libXxf86vm libXrandr glx-utils
 RUN apt-get update && \
-    apt-get install -y gnome-shell sudo fish xcalib socat pavucontrol wget lxterminal pulseaudio-utils \
-                       firefox gnome-terminal passwd pulseaudio docker docker-compose && \
-    true
+    apt-get install -y xfce4 sudo pulseaudio pavucontrol pulseaudio-utils
 
-RUN \
-    rm -f /etc/systemd/system/*.wants/* && \
+ARG ARG_UID
+ARG ARG_GID
+ARG ARG_DOCKERGID
+
+RUN rm -f /etc/systemd/system/*.wants/* && \
     rm -f /etc/systemd/system/systemd-remount-fs.service && \
     rm -f /etc/systemd/system/systemd-journald.socket && \
     rm -f /etc/systemd/system/systemd-journald.service && \
@@ -34,29 +32,51 @@ RUN \
     ln -s /dev/null /etc/systemd/system/systemd-journal-flush.service && \
     ln -s /usr/lib/systemd/system/upower.service /etc/systemd/system/upower.service && \
     ln -s /usr/lib/systemd/system/system-logind.service /etc/systemd/system/systemd-login.service && \
-    true
-
-RUN mkdir -p /run/udev && \
+    mkdir -p /run/udev && \
     mkdir -p /run/dbus && \
     mkdir -p /run/systemd/system && \
-    cp /usr/share/zoneinfo/Europe/Ljubljana /etc/localtime && \
-    adduser rancher && \
-    usermod -aG video rancher && \
-    usermod -aG audio rancher && \
-    usermod -aG sudo rancher && \
-    usermod -aG docker rancher && \
-    sed -e 's/^root.*/root\tALL=(ALL)\tALL\nrancher\tALL=(ALL)\tALL/g' /etc/sudoers > /etc/sudoers.new && \
-    mv /etc/sudoers.new /etc/sudoers && \
+    \
+    echo "Europe/Ljubljana" > /etc/timezone && \
+    dpkg-reconfigure -f noninteractive tzdata && \
+    /bin/bash -c 'echo "nameserver 8.8.8.8" > /etc/resolv.conf' && \
+    true
+
+RUN \
+    apt-get install -y passwd dirmngr apt-transport-https && \
+    echo "deb https://apt.dockerproject.org/repo ubuntu-xenial main" | sudo tee /etc/apt/sources.list.d/docker.list && \
+    sudo apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D && \
+    apt-get update && \
+    apt-get install -y docker-engine && \
+    export uid=$ARG_UID gid=$ARG_GID dgid=$ARG_DOCKERGID && \
+    mkdir -p /home/user && \
+    echo "user:x:${uid}:${gid}:User,,,:/home/user:/bin/bash" >> /etc/passwd && \
+    echo "user:x:${uid}:" >> /etc/group && \
+    echo "user ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/user && \
+    chmod 0440 /etc/sudoers.d/user && \
+    chown ${uid}:${gid} -R /home/user && \
+    /bin/bash -c "echo 'user:user' | chpasswd" && \
+# ssh https://docs.docker.com/examples/running_ssh_service/
+#   and SSH login fix. Otherwise user is kicked off after login
+    apt-get install -y openssh-server && \
+    usermod -aG video user && \
+    usermod -aG audio user && \
+    usermod -aG sudo user && \
+    usermod -aG docker user && \
+    sed -i "s|docker:x:\([0-9]\+\):|docker:x:${dgid}:|" /etc/group && \
     cat /etc/bashrc | sed 's/\(.*PROMPT_COMMAND=\).*033K.*/\1'"'"'PRINTF "\\033];%S@%S:%S\\033\\\\" "${USER}" "${HOSTNAME%%.*}" "${PWD\/#$HOME\/~}"'"'"'/g' > /etc/tmp && \
     mv /etc/tmp /etc/bashrc && \
     echo  '12345678900987654321234567890987' > /etc/machine-id && \
     true
+RUN \
+#    apt-get install -y docker-compose && \
+    true
 
+VOLUME ["/home/user"]
 CMD /bin/bash -c '\
 /bin/systemd --system & \
 sleep 10; \
 chmod a+w /var/run/dbus/system_bus_socket; \
 X & \
-su - rancher -c "export DISPLAY=\":0\"; gnome-session;" \
+su - user -c "export DISPLAY=\":0\"; xfce4-session;" \
 '
 
