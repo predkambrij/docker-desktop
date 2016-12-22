@@ -1,0 +1,27 @@
+version: '2'
+services:
+  data_unix_socket:
+    image: busybox:latest
+    volumes:
+      - unix_socket:/tmp/.X11-unix/
+  desktop:
+    image: ${ARG_IMAGE}
+    build:
+        context: .
+        args:
+          - ARG_UID=${ARG_UID}
+          - ARG_GID=${ARG_GID}
+          - ARG_DOCKERGID=${ARG_DOCKERGID}
+    hostname: ${ARG_HOSTNAME}
+    privileged: true
+    shm_size: 512M
+    volumes:
+      - desktop_home1:/home/user
+      - /home/loj:/home/user/oldhome
+      - /var/run/docker.sock:/var/run/docker.sock
+    volumes_from:
+      - data_unix_socket
+volumes:
+  desktop_home1:
+  unix_socket:
+

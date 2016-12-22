@@ -38,11 +38,15 @@ RUN rm -f /etc/systemd/system/*.wants/* && \
     \
     echo "Europe/Ljubljana" > /etc/timezone && \
     dpkg-reconfigure -f noninteractive tzdata && \
+    cp /usr/share/zoneinfo/Europe/Ljubljana /etc/localtime && \
     /bin/bash -c 'echo "nameserver 8.8.8.8" > /etc/resolv.conf' && \
     true
 
 RUN \
-    apt-get install -y passwd dirmngr apt-transport-https && \
+    apt-get install -y curl passwd dirmngr apt-transport-https && \
+    curl -L "https://github.com/docker/compose/releases/download/1.9.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && \
+    chmod +x /usr/local/bin/docker-compose && \
+    \
     echo "deb https://apt.dockerproject.org/repo ubuntu-xenial main" | sudo tee /etc/apt/sources.list.d/docker.list && \
     sudo apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D && \
     apt-get update && \
@@ -66,8 +70,12 @@ RUN \
     cat /etc/bashrc | sed 's/\(.*PROMPT_COMMAND=\).*033K.*/\1'"'"'PRINTF "\\033];%S@%S:%S\\033\\\\" "${USER}" "${HOSTNAME%%.*}" "${PWD\/#$HOME\/~}"'"'"'/g' > /etc/tmp && \
     mv /etc/tmp /etc/bashrc && \
     echo  '12345678900987654321234567890987' > /etc/machine-id && \
+    \
+    apt-get install -y apt-file && \
+    apt-file update && \
     true
 RUN \
+    apt-get install -y htop acpi vim nano xfce4-terminal && \
 #    apt-get install -y docker-compose && \
     true
 
